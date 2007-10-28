@@ -2,10 +2,8 @@ import os
 import commands
 import wnsrc
 
-if "command not" not in os.popen4("tla")[1].readline():
-    projectName = commands.getoutput("tla tree-version").split("/")[1]
-elif "command not" not in os.popen4("baz")[1].readline():
-    projectName = commands.getoutput("baz tree-version").split("/")[1]
+
+projectName = "PyWNS--main--1.0"
 
 sandboxPath = ARGUMENTS.get('sandboxDir', wnsrc.pathToSandbox)
 if sandboxPath == "":
