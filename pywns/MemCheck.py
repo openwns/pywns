@@ -25,6 +25,7 @@ class Runner:
                  num_callers=20,
                  leak_check='full',
                  leak_resolution='low',
+                 errorExitCode="192",
                  suppressions=os.path.join(wnsrc.pathToWNS, "config", "valgrind.supp")):
         self.env = os.environ
         self.env['GLIBCPP_FORCE_NEW']='1'
@@ -37,6 +38,7 @@ class Runner:
             '--leak-check='+leak_check,
             '--leak-resolution='+leak_resolution,
             '--suppressions='+suppressions,
+            '--error-exitcode='+errorExitCode
         ]
         self.args += args
 
