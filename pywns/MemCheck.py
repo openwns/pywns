@@ -5,6 +5,7 @@ import wnsrc
 import os
 import sys
 import signal
+import glob
 
 class SignalHandler:
     def __init__(self, subprocess):
@@ -40,6 +41,8 @@ class Runner:
             '--suppressions='+suppressions,
             '--error-exitcode='+errorExitCode
         ]
+        for suppressionsFile in glob.glob('/usr/lib/valgrind/*.supp'):
+            self.args.append('--suppressions='+suppressionsFile)
         self.args += args
 
     def run(self):
