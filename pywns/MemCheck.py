@@ -27,7 +27,8 @@ class Runner:
                  leak_check='full',
                  leak_resolution='low',
                  errorExitCode="192",
-                 suppressions=os.path.join(wnsrc.pathToWNS, "config", "valgrind.supp")):
+                 suppressions=[],
+                 useOpenWNSSuppressions = True):
         self.env = os.environ
         self.env['GLIBCPP_FORCE_NEW']='1'
         self.env['GLIBCXX_FORCE_NEW']='1'
@@ -38,10 +39,11 @@ class Runner:
             '--num-callers='+str(num_callers),
             '--leak-check='+leak_check,
             '--leak-resolution='+leak_resolution,
-            '--suppressions='+suppressions,
             '--error-exitcode='+errorExitCode
         ]
-        for suppressionsFile in glob.glob('/usr/lib/valgrind/*.supp'):
+        if useOpenWNSSuppressions:
+            self.args.append('--suppressions='+os.path.join(wnsrc.pathToWNS, "config", "valgrind.supp"))
+        for suppressionsFile in suppressions:
             self.args.append('--suppressions='+suppressionsFile)
         self.args += args
 
