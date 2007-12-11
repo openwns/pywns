@@ -159,7 +159,16 @@ suppressed since these are out our of control.
                        type="string", dest = "executable", default = "./openwns",
                        help = "The executable that is to be called (default : \"./openWNS\")")
 
+        self.addOption("", "--suppressions",
+                       type="string", dest = "suppressions", default = "",
+                       help = "A (comma separated) list of valgrind suppression files (e.g.: /usr/lib/valgrind/python.supp)")
+
     def run(self):
-        r = pywns.MemCheck.Runner(args=[self.options.executable, "-tv"], cwd="tests/unit/unitTests")
+        suppressionsFileList = []
+        if not self.options.suppressions == "":
+            suppressionsFileList = [ ii.strip() for ii in self.options.suppressions.split(',') ]
+        r = pywns.MemCheck.Runner(args=[self.options.executable, "-tv"],
+                                  cwd="tests/unit/unitTests",
+                                  suppressions=suppressionsFileList)
         returncode = r.run()
         sys.exit(returncode)
