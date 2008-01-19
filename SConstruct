@@ -3,7 +3,7 @@ import commands
 import wnsrc
 
 
-projectName = "PyWNS--main--1.0"
+projectName = "pywns--main--1.0"
 
 sandboxPath = ARGUMENTS.get('sandboxDir', wnsrc.pathToSandbox)
 if sandboxPath == "":
