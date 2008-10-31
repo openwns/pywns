@@ -49,15 +49,15 @@ and the system tests.
 
         self.addOption("", "--executable",
                        type="string", dest = "executable", default = "./openwns",
-                       help = "The executable that is to be called (default : \"./openWNS\")")
+                       help = "The executable that is to be called (default : \"./openwns\")")
     def run(self):
         # create test collector
         import pywns.WNSUnit
+        import wnsbase.playground.Project
 
         tests = []
         for project in core.getProjects().all:
-            if os.path.normpath(project.getDir()).split(os.sep)[0] == "tests" and \
-                    os.path.normpath(project.getDir()).split(os.sep)[1] == "system":
+            if isinstance(project, wnsbase.playground.Project.SystemTest):
                 tests.append(project)
 
         testCollector = pywns.WNSUnit.SystemTestCollector(suiteConfig = "systemTest.py",
@@ -109,15 +109,15 @@ Runs all the tests in the long test suite.
 
         self.addOption("", "--executable",
                        type="string", dest = "executable", default = "./openwns",
-                       help = "The executable that is to be called (default : \"./openWNS\")")
+                       help = "The executable that is to be called (default : \"./openwns\")")
     def run(self):
         # create test collector
         import pywns.WNSUnit
+        import wnsbase.playground.Project
 
         tests = []
         for project in core.getProjects().all:
-            if os.path.normpath(project.getDir()).split(os.sep)[0] == "tests" and \
-                    os.path.normpath(project.getDir()).split(os.sep)[1] == "system":
+            if isinstance(project, wnsbase.playground.Project.SystemTest):
                 tests.append(project)
 
         testCollector = pywns.WNSUnit.SystemTestCollector(suiteConfig = "systemLongTest.py",
@@ -157,9 +157,18 @@ suppressed since these are out our of control.
 
         self.addOption("", "--executable",
                        type="string", dest = "executable", default = "./openwns",
-                       help = "The executable that is to be called (default : \"./openWNS\")")
+                       help = "The executable that is to be called (default : \"./openwns\")")
+
+        self.addOption("", "--suppressions",
+                       type="string", dest = "suppressions", default = "",
+                       help = "A (comma separated) list of valgrind suppression files (e.g.: /usr/lib/valgrind/python.supp)")
 
     def run(self):
-        r = pywns.MemCheck.Runner(args=[self.options.executable, "-tv"], cwd="tests/unit/unitTests")
+        suppressionsFileList = []
+        if not self.options.suppressions == "":
+            suppressionsFileList = [ ii.strip() for ii in self.options.suppressions.split(',') ]
+        r = pywns.MemCheck.Runner(args=[self.options.executable, "-tv"],
+                                  cwd="tests/unit/unitTests",
+                                  suppressions=suppressionsFileList)
         returncode = r.run()
         sys.exit(returncode)

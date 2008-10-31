@@ -1,35 +1,9 @@
-#!/usr/bin/env python2.4
-###############################################################################
-# This file is part of openWNS (open Wireless Network Simulator)
-# _____________________________________________________________________________
-#
-# Copyright (C) 2004-2007
-# Chair of Communication Networks (ComNets)
-# Kopernikusstr. 16, D-52074 Aachen, Germany
-# phone: ++49-241-80-27910,
-# fax: ++49-241-80-22242
-# email: info@openwns.org
-# www: http://www.openwns.org
-# _____________________________________________________________________________
-#
-# openWNS is free software; you can redistribute it and/or modify it under the
-# terms of the GNU Lesser General Public License version 2 as published by the
-# Free Software Foundation;
-#
-# openWNS is distributed in the hope that it will be useful, but WITHOUT ANY
-# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
-# A PARTICULAR PURPOSE.  See the GNU Lesser General Public License for more
-# details.
-#
-# You should have received a copy of the GNU Lesser General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
-#
-##############################################################################
+#!/usr/bin/env python
 
 import os
 import pywns.TableParser
 
-class ProbeTypeError:
+class ProbeTypeError(Exception):
     """
     Raised if not a probe of desired type
     """
@@ -51,17 +25,21 @@ class Probe(object):
         """
 
         self.filename = filename
+        self.absFilename = os.path.abspath(self.filename)
 
-        self.__items = self.__parseFile()
+        self.__items = self.parseFile(self.absFilename)
 
         self.dirname, self.filenameWithoutDir = os.path.split(self.filename)
         if self.dirname == "":
             self.dirname = "./"
 
         # check if is probe file of desired type
-        evaluation = self.getValue("Evaluation")
-        if not probeType in evaluation:
-            raise ProbeTypeError(str(self) + " tried to read a probe of type: " + probeType)
+	
+	# DISABLED: Does not work during LogEval / Moments / TimeSeries migration
+	
+        # evaluation = self.getValue("Evaluation")
+        # if not probeType in evaluation:
+        #    raise ProbeTypeError(str(self) + " tried to read a probe of type: " + probeType)
 
         # This name is the name provided by the probe itself. It may
         # be not unique for probe files being kept in a directory
@@ -70,7 +48,7 @@ class Probe(object):
         # This name is built from the filename and therfor unique, at
         # least for all probes in one directory
         altName, ext = os.path.splitext(self.filenameWithoutDir)
-        self.altName                   = altName[0:-(len("_" + probeType))]
+        self.altName                   = altName
         self.description               = self.getValue("Description")
         self.minimum                   = self.getValue("Minimum")
         self.maximum                   = self.getValue("Maximum")
@@ -89,14 +67,14 @@ class Probe(object):
 
 
 
-    def __parseFile(self):
+    def parseFile(fileName):
         """ parses self.filename
 
         searches for the pattern: '# key: value', returns a dict with
         the found keys and values
         """
         items = {}
-        for line in file(self.filename):
+        for line in file(fileName):
             # strip spaces and newlines
             line = line.strip()
             if line.startswith("#"):
@@ -111,12 +89,11 @@ class Probe(object):
                         items[key] = value
                     else:
                         raise Exception("Tried to add '" + key + "' but this was already found.")
-                else:
-                    pass
             else:
                 # when no "#" is found, we can stop parsing
                 break
         return items
+    parseFile = staticmethod(parseFile)
 
 
     def getValue(self, parameter):
@@ -126,13 +103,12 @@ class Probe(object):
         # automatic conversion
         # try int, float, string (in this order)
         try:
-            value = int(value)
+            return int(value)
         except ValueError:
             try:
-                value = float(value)
+                return float(value)
             except ValueError:
-                pass
-        return value
+                return value
 
 
     # @staticmethod (this syntax works only for python >= 2.4)
@@ -153,7 +129,7 @@ class Probe(object):
 
 # Moments probe specific part
 class MomentsProbe(Probe):
-    fileNameSig = "_Mom.dat"
+    fileNameSig = "_Moments.dat"
 
     probeType = "Moments"
 
@@ -168,7 +144,9 @@ class MomentsProbe(Probe):
 
 # PDF probe specific part
 
-class PDFHistogramEntry:
+class PDFHistogramEntry(object):
+
+    __slots__ = ["x", "cdf", "ccdf", "pdf"]
 
     def __init__(self, listOfValues):
         self.x = float(listOfValues[0])
@@ -202,12 +180,19 @@ class PDFProbe(Probe):
         self.underflows     = self.getValue("Underflows")
         self.overflows      = self.getValue("Overflows")
 
-        # read x, PDF, CDF, CCDF
-        self.histogram = []
-        for line in file(self.filename):
-            if not line.startswith("#"):
-                self.histogram.append(PDFHistogramEntry(line.split()))
+        self.__histogram = []
+        self.__histogramRead = False
 
+    def __getHistogram(self):
+        if self.__histogramRead == False:
+            self.__histogram = []
+            for line in file(self.absFilename):
+                if not line.startswith('#'):
+                    self.__histogram.append(PDFHistogramEntry(line.split()))
+            self.__histogramRead = True
+        return self.__histogram
+
+    histogram = property(__getHistogram)
 
     # @staticmethod (this syntax works only for python >= 2.4)
     def readProbes(dirname):
@@ -236,9 +221,46 @@ class PDFProbe(Probe):
     pureHistogram = property(__getPureHistogram)
 
 
+class TimeSeriesProbe(object):
+    fileNameSig = "_TimeSeries.dat"
+    valueNames = []
+
+    filename = None
+    filenameWithoutDir = None
+    name = None
+    entries = None
+
+    probeType = "TimeSeries"
+
+    def __init__(self, filename):
+        self.filename = filename
+        self.dirname, self.filenameWithoutDir = os.path.split(self.filename)
+        if self.dirname == "":
+            self.dirname = "./"
+
+        # Parse the file
+        items = Probe.parseFile(self.filename)
+
+        self.altName            = self.filenameWithoutDir.rsplit('_', 1)[0]
+        self.name               = items["Name"]
+        self.description        = items["Description"]
+        
+        self.entries = []
+        for line in file(self.filename):
+            if not line.startswith('#'):
+                self.entries.append(LogEvalEntry(line.split()))
+
+    # @staticmethod (this syntax works only for python >= 2.4)
+    def readProbes(dirname):
+        result = Probe.readProbes(TimeSeriesProbe.fileNameSig, TimeSeriesProbe, dirname)
+        return result
+    readProbes = staticmethod(readProbes)
+
 # LogEval probe specific part
 
-class LogEvalEntry:
+class LogEvalEntry(object):
+
+    __slots__ = ["x", "y"]
 
     def __init__(self, listOfValues):
         self.x = float(listOfValues[0])
@@ -251,6 +273,7 @@ class LogEvalProbe(Probe):
     valueNames = Probe.valueNames
     entries = None
     readAllValues = True
+    filenameEntries = None
 
     probeType = "LogEval"
 
@@ -259,19 +282,30 @@ class LogEvalProbe(Probe):
 
         splitFilename = filename.split(".")
         splitFilename[-2] += ".log"
-        filenameEntries = str(".").join(splitFilename)
+        self.filenameEntries = str(".").join(splitFilename)
 
-        if self.readAllValues:
-            try:
-                # read x, y
-                self.entries = []
-                for line in file(filenameEntries):
-                    if not line.startswith("#"):
-                        self.entries.append(LogEvalEntry(line.split()))
-            except:
-                pass
-        else:
-            self.entries=[]
+        # In the renovated LogEval Probe, the header and the data are in one and the same file
+        # TODO: fileNameEntries can be removed when PDataBase/SortingCriterion are abandoned
+        if not os.path.exists(self.filenameEntries):
+            self.filenameEntries = filename
+
+        self.__entries = []
+        self.__entriesRead = False
+
+    def __getEntries(self):
+        if not self.readAllValues:
+            return []
+
+        if self.__entriesRead == False:
+            self.__entries = []
+            for line in file(self.filenameEntries):
+                if not line.startswith('#'):
+                    self.__entries.append(LogEvalEntry(line.split()))
+            self.__entriesRead = True
+	    
+        return self.__entries
+
+    entries = property(__getEntries)
 
     # @staticmethod (this syntax works only for python >= 2.4)
     def readProbes(dirname):
@@ -330,7 +364,7 @@ class BatchMeansProbe(Probe):
 
         # read x, CDF, PDF, relative error, confidence, number of trials
         self.histogram = []
-        for line in file(self.filename):
+        for line in file(self.absFilename):
             if not line.startswith("#"):
                 self.histogram.append(BatchMeansHistogramEntry(line.split()))
 
@@ -431,7 +465,7 @@ class LreProbe(Probe):
         self.numberOfTransitionsPerIntervalStandardDeviation  = self.getValue("Number of transitions per interval (Standard deviation)")
 
         self.histogram = []
-        for line in file(self.filename):
+        for line in file(self.absFilename):
             if not line.startswith("#"):
                 self.histogram.append(LreHistogramEntry(line.split()))
 
@@ -480,7 +514,7 @@ class DlreProbe(Probe):
         self.overflows                   = self.getValue("Overflows")
 
         self.histogram = []
-        for line in file(self.filename):
+        for line in file(self.absFilename):
             if not line.startswith("#"):
                 self.histogram.append(DlreHistogramEntry(line.split()))
 
@@ -521,7 +555,7 @@ class TableProbe:
         self.description               = self.tableParser.getDescription()
         self.minimum                   = self.tableParser.minimum
         self.maximum                   = self.tableParser.maximum
-        self.trials                    = "-"
+        self.trials                    = self.tableParser.trials
         self.mean                      = "-"
         self.variance                  = "-"
         self.relativeVariance          = "-"
@@ -543,6 +577,7 @@ def readAllProbes(dirname):
     result = {}
     result = PDFProbe.readProbes(dirname)
     result.update(LogEvalProbe.readProbes(dirname))
+    result.update(TimeSeriesProbe.readProbes(dirname))
     result.update(MomentsProbe.readProbes(dirname))
     result.update(TableProbe.readProbes(dirname))
 
@@ -551,7 +586,7 @@ def readAllProbes(dirname):
 
 def getProbeType(filename):
     """This function identifies and returns the type of a probe file"""
-    for probeType in [ MomentsProbe, PDFProbe, LogEvalProbe ]:
+    for probeType in [ MomentsProbe, PDFProbe, LogEvalProbe, TimeSeriesProbe ]:
         if probeType.fileNameSig in filename:
             return probeType
 
