@@ -215,7 +215,7 @@ class SystemTestSuite(TestSuite):
         """
         Parameters:
 
-        sandboxPath: path to sandbox to launch wns-core from
+        sandboxPath: path to sandbox to launch openwns from
 
         configFile: this file will be used for the test two
         simulations (dbg and opt) will be performed with this
@@ -374,12 +374,12 @@ class SystemTestSuite(TestSuite):
         """
         output.writeErr("Running simulations (no test, just preparing output) in debugging and\noptimized mode (may take very long):\n")
         # two tests one for dbg
-        dbgSimulation = Simulation(wns = os.path.join(self.sandboxPath, "dbg", "bin", "wns-core"),
+        dbgSimulation = Simulation(wns = os.path.join(self.sandboxPath, "dbg", "bin", "openwns"),
                                    configFile = self.configFile,
                                    outputDir = self.dbgOutputDir)
 
         # and one for opt
-        optSimulation = Simulation(wns = os.path.join(self.sandboxPath, "opt", "bin", "wns-core"),
+        optSimulation = Simulation(wns = os.path.join(self.sandboxPath, "opt", "bin", "openwns"),
                                    configFile = self.configFile,
                                    outputDir = self.optOutputDir)
 
@@ -473,7 +473,7 @@ class ProbesTestSuite(SystemTestSuite):
             workingDir = workingDir,
             readProbes = True)
 
-        self.probesToBeExcluded = ['wns.Memory_SC1_Log.dat']
+        self.probesToBeExcluded = ['wns.Memory_TimeSeries.dat', 'wns.Memory_Moments.dat']
         self.maximumRelativeError = maximumRelativeError
         self.__requireReferenceOutput = requireReferenceOutput
 
@@ -534,7 +534,8 @@ class ProbesTestSuite(SystemTestSuite):
         IP_End_to_End_Delay). The intersection of the probes of two
         directories are compared against each other (in the event some
         probes are not available, for whatsoever reason). The values
-        are compared with a maximum relative error.
+        are compared with a maximum relative error. For dbg vs. opt
+        tests, the maximum relative error is set 0.0.
         """
         # check that any probes have been read
         if len(self.dbgProbes.probes.keys()) == 0:
@@ -545,19 +546,23 @@ class ProbesTestSuite(SystemTestSuite):
                 referenceProbeNames = set(self.referenceProbes.probes.keys()),
                 referenceFlavour = 'reference',
                 actualProbeNames = set(self.dbgProbes.probes.keys()),
-                actualFlavour = 'dbg')
+                actualFlavour = 'dbg',
+                maximumRelativeError = self.maximumRelativeError)
 
             self.__generateTestsForProbes(
                 referenceProbeNames = set(self.referenceProbes.probes.keys()),
                 referenceFlavour = 'reference',
                 actualProbeNames = set(self.optProbes.probes.keys()),
-                actualFlavour = 'opt')
+                actualFlavour = 'opt',
+                maximumRelativeError = self.maximumRelativeError)
 
+        # special case: dbg vs. opt must fit 100%, no relative error allowed!
         self.__generateTestsForProbes(
                 referenceProbeNames = set(self.optProbes.probes.keys()),
                 referenceFlavour = 'dbg',
                 actualProbeNames = set(self.optProbes.probes.keys()),
-                actualFlavour = 'opt')
+                actualFlavour = 'opt',
+                maximumRelativeError = 0.0)
 
 
     def __generateTestsForProbes(
@@ -565,7 +570,8 @@ class ProbesTestSuite(SystemTestSuite):
 	referenceProbeNames,
 	referenceFlavour,
 	actualProbeNames,
-	actualFlavour):
+	actualFlavour,
+        maximumRelativeError):
         """ Generate a number of tests for all probes in
         referenceOutput and actualOutput
 
@@ -589,14 +595,18 @@ class ProbesTestSuite(SystemTestSuite):
             # exclude removed Probes
             if probeName in self.probesToBeExcluded :
                 continue
-            # TableProbes are currently not supported
-            if not isinstance(self.__dict__[referenceFlavour+"Probes"].probes[probeName], Probe.TableProbe):
+            # TableProbes are currently not supported, TimeSeries not intended
+            if not (isinstance(self.__dict__[referenceFlavour+"Probes"].probes[probeName],
+                Probe.TableProbe)) and (not 
+            isinstance(self.__dict__[referenceFlavour+"Probes"].probes[probeName],
+                Probe.TimeSeriesProbe)):
+              
                 self.addTests(ProbesAreAlmostEqual.getAllTests(
                     probeName,
                     referenceFlavour,
                     probeName,
                     actualFlavour,
-                    self.maximumRelativeError))
+                    maximumRelativeError))
 
 
 class PedanticProbesTestSuite(ProbesTestSuite):
@@ -696,7 +706,7 @@ class DirectoryContentsAreEqual(SystemTestCase):
         super(DirectoryContentsAreEqual, self).__init__("runTest")
         self.referenceDir = referenceDir
         self.actualDir = actualDir
-        self.filterItems =  [".arch-ids"]
+        self.filterItems =  ["wns.Memory_TimeSeries.dat","wns.Memory_Moments.dat"]
 
     def description(self):
         return "Check equality of " + self.referenceDir + " and " + self.actualDir
@@ -903,7 +913,8 @@ class ProbesAreAlmostEqual(SystemTestCase):
         errorMsg  = "\nMaximum relative error of " + str(self.maxRelError) + " exceeded."
         errorMsg += "\nRelative error was: " + str(relError) + " (reference: " + str(refVal) + ", actual: " + str(actVal) + ")"
 
-        self.assertTrue( relError <= self.maxRelError, errorMsg )
+        # compare absolute values
+        self.assertTrue( abs(relError) <= abs(self.maxRelError), errorMsg )
 
     @staticmethod
     def getAllTests(referenceProbeName, referenceFlavour, actualProbeName, actualFlavour, maxRelError):
@@ -943,7 +954,7 @@ class Simulation(object):
     """
     def __init__(
         self,
-        wns = "../../sandbox/dbg/bin/wns-core",
+        wns = "../../sandbox/dbg/bin/openwns",
         configFile = "config.py",
         configPatches = [],
         outputDir = ""
@@ -962,6 +973,7 @@ class Simulation(object):
         """
         start = datetime.datetime.today()
         cmd = " ".join([self.wns, "-f", self.configFile, self.wnsParameters])
+        print "Running: " + cmd
         stdout = "stdout.log"
         stderr = "stderr.log"
         process = subprocess.Popen(cmd, shell=True, stdout=open(stdout, "w"), stderr=open(stderr, "w"))
