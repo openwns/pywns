@@ -4,7 +4,6 @@ pythonFiles = [
 'Probe.py',
 'MemCheck.py',
 'TableParser.py',
-'Tools.py',
 'WNSUnit.py',
 '__init__.py',
 ]
