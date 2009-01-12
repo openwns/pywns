@@ -23,7 +23,8 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
-##############################################################################
+###############################################################################
+
 class TableParser:
     fileName = None
     header = None
@@ -35,6 +36,7 @@ class TableParser:
     description = None
     minimum = None
     maximum = None
+    trials = None
 
     xvalues = None
     yvalues = None
@@ -51,27 +53,40 @@ class TableParser:
             self.header = ''
             self.lines = []
             self.fileName = fileName
+            self.maximum = 0
+            self.minimum = 0
+            self.trials = 0
+            firstLine = True
             infile = file(self.fileName)
             for line in infile:
                 if line.startswith("%"):
                     self.header += line
-                    if line.count("1st row ID"):
-                        self.firstRowContains = line.split("(")[1][0]
-                        self.firstRowIdName = line.split(":")[1].strip()
-                    elif line.count("2nd row ID"):
-                        self.secondRowContains = line.split("(")[1][0]
-                        self.secondRowIdName = line.split(":")[1].strip()
-                    elif line.count("Description"):
-                        self.description = line.split(":")[1].strip()
-                    elif line.count("Minimum"):
-                        self.minimum = float(line.split(":")[1].strip())
-                    elif line.count("Maximum"):
-                        self.maximum = float(line.split(":")[1].strip())
-                    else:
-                        raise "Encountered unknown comment line in file: "+self.fileName
+                    if line.count("This table contains the"):
+                        self.description = line[2:].strip()
+                    elif line.count("Dim "):
+                        if line.count("Dim 1:"):
+                            self.firstRowIdName = line.split(':')[1].strip().split('\'')[1]
+                            self.firstRowContains = 'r'
+                            if(self.secondRowIdName is None):
+                                # fill second row description, will be overwritten if dim == 2
+                                self.secondRowIdName = 'na'
+                                self.secondRowContains = 'c'
+                        elif line.count("Dim 2:"):
+                            self.secondRowIdName = line.split(':')[1].strip().split('\'')[1]
+                            self.secondRowContains = 'c'
+                        else:
+                            raise "Encountered invalid number of dimensions in file " + self.fileName
                 else:
-                    lineValues = [ float(col) for col in line.strip().split() ]
-                    self.lines.append(lineValues)
+                    if len(line.strip()) > 0:
+                        self.trials+=1
+                        lineValues = [ float(col) for col in line.strip().split() ]
+                        if(firstLine):
+                            self.maximum = lineValues[-1]
+                            self.minimum = lineValues[-1]
+                            firstLine = False
+                        self.maximum = max(lineValues[-1], self.maximum)
+                        self.minimum = min(lineValues[-1], self.minimum)
+                        self.lines.append(lineValues)
 
             infile.close()
         else:
@@ -86,28 +101,20 @@ class TableParser:
             self.minimum = minimum
             self.maximum = maximum
 
-        if self.firstRowContains == 'r' and self.secondRowContains == 'c':
-            self.ycol=0
-            self.xcol=1
-        elif self.firstRowContains == 'c' and self.secondRowContains == 'r':
-            self.ycol=1
-            self.xcol=0
-        else:
-            raise "read Unknown table configuration:\n"+self.header
-        # read all x values
-        self.xvalues = [ v for v in set([ lineValues[self.xcol] for lineValues in self.lines ])]
-        self.yvalues = [ v for v in set([ lineValues[self.ycol] for lineValues in self.lines ])]
+        self.xcol = 0
+        self.ycol = 1
+        self.xvalues = [ v for v in set([ lineValues[0] for lineValues in self.lines ])]
+        self.yvalues = [ v for v in set([ lineValues[1] for lineValues in self.lines ])]
 
         self.xvalues.sort()
         self.yvalues.sort()
 
+    def getArray(self):
         self.valueMap = {}
         # store measured values
         for line in self.lines:
             self.valueMap[(line[self.xcol],line[self.ycol])] = line[self.zcol]
 
-
-    def getArray(self):
         valueArray = []
 
         lineNo = 0
