@@ -25,6 +25,13 @@
 #
 ###############################################################################
 
+class NumberOfDimensionsError(Exception):
+    def __init__(self, value):
+        self.value = value
+    def __str__(self):
+        return repr(self.value)
+
+
 class TableParser:
     fileName = None
     header = None
@@ -75,7 +82,7 @@ class TableParser:
                             self.secondRowIdName = line.split(':')[1].strip().split('\'')[1]
                             self.secondRowContains = 'c'
                         else:
-                            raise "Encountered invalid number of dimensions in file " + self.fileName
+                            raise NumberOfDimensionsError("Encountered invalid number of dimensions in file %s" %(self.fileName))
                 else:
                     if len(line.strip()) > 0:
                         self.trials+=1

@@ -544,26 +544,35 @@ class TableProbe:
     probeType = "Table"
 
     def __init__(self, filename):
-        self.tableParser = pywns.TableParser.TableParser(filename)
         self.filename = filename
         self.dirname, self.filenameWithoutDir = os.path.split(self.filename)
         if self.dirname == "":
             self.dirname = "./"
 
-        self.name                      = self.filenameWithoutDir.rsplit('_', 1)[0]
-        self.type                      = self.filenameWithoutDir.rsplit('_', 1)[1]
-        self.description               = self.tableParser.getDescription()
-        self.minimum                   = self.tableParser.minimum
-        self.maximum                   = self.tableParser.maximum
-        self.trials                    = self.tableParser.trials
-        self.mean                      = "-"
-        self.variance                  = "-"
-        self.relativeVariance          = "-"
-        self.standardDeviation         = "-"
+        self.name = self.filenameWithoutDir.rsplit('_', 1)[0]
+        self.type = self.filenameWithoutDir.rsplit('_', 1)[1]
+
+        try:
+            self.tableParser = pywns.TableParser.TableParser(filename)
+        except pywns.TableParser.NumberOfDimensionsError:
+            self.description = "Wrong number of dimensions in table - cannot read in"
+            self.minimum = 0
+            self.maximum = 0
+            self.trials = 0
+        else:
+            self.description = self.tableParser.getDescription()
+            self.minimum = self.tableParser.minimum
+            self.maximum = self.tableParser.maximum
+            self.trials = self.tableParser.trials
+
+        self.mean = "-"
+        self.variance = "-"
+        self.relativeVariance = "-"
+        self.standardDeviation = "-"
         self.relativeStandardDeviation = "-"
-        self.skewness                  = "-"
-        self.moment2                   = "-"
-        self.moment3                   = "-"
+        self.skewness = "-"
+        self.moment2 = "-"
+        self.moment3 = "-"
 
     # @staticmethod (this syntax works only for python >= 2.4)
     def readProbes(dirname):
