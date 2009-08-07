@@ -75,7 +75,9 @@ class TableParser:
                             self.secondRowIdName = line.split(':')[1].strip().split('\'')[1]
                             self.secondRowContains = 'c'
                         else:
-                            raise "Encountered invalid number of dimensions in file " + self.fileName
+                            # more than two dimensions -> not directly supported...
+                            # shift value column by one
+                            self.zcol += 1
                 else:
                     if len(line.strip()) > 0:
                         self.trials+=1

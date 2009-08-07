@@ -1,11 +1,19 @@
 #!/usr/bin/python
 
 import subprocess
-import wnsrc
 import os
 import sys
 import signal
 import glob
+
+def searchPathToSDK(path):
+    rootSign = ".thisIsTheRootOfWNS"
+    while rootSign not in os.listdir(path):
+        if path == os.sep:
+            # arrived in root dir
+            return None
+        path, tail = os.path.split(path)
+    return os.path.abspath(path)
 
 class SignalHandler:
     def __init__(self, subprocess):
@@ -41,8 +49,15 @@ class Runner:
             '--leak-resolution='+leak_resolution,
             '--error-exitcode='+errorExitCode
         ]
+
+        pathToSDK = searchPathToSDK(os.path.abspath(os.path.dirname(sys.argv[0])))
+
+        if pathToSDK == None:
+            print "Error! You are note within an openWNS-SDK. Giving up"
+            exit(1)
+
         if useOpenWNSSuppressions:
-            self.args.append('--suppressions='+os.path.join(wnsrc.pathToWNS, "config", "valgrind.supp"))
+            self.args.append('--suppressions='+os.path.join(pathToSDK, "config", "valgrind.supp"))
         for suppressionsFile in suppressions:
             self.args.append('--suppressions='+suppressionsFile)
         self.args += args

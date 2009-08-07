@@ -117,7 +117,7 @@ class Probe(object):
         for ff in os.listdir(dirname):
             filename = os.path.join(dirname, ff)
             if os.path.isfile(filename):
-                if probeType in filename:
+                if filename.endswith(probeType):
                     try:
                         probe = probeClass(filename)
                         result[probe.filenameWithoutDir] = probe
@@ -528,11 +528,11 @@ class DlreProbe(Probe):
 
 
 class TableProbe:
-    fileNameSigs = ['_mean',
-                    '_max',
-                    '_min',
-                    '_trials',
-                    '_var',
+    fileNameSigs = ['_mean.dat',
+                    '_max.dat',
+                    '_min.dat',
+                    '_trials.dat',
+                    '_var.dat',
                     ] # there are more than these, but these are the most commonly used ones.
     valueNames = ["minimum", "maximum"]
 
@@ -544,18 +544,20 @@ class TableProbe:
     probeType = "Table"
 
     def __init__(self, filename):
-        self.tableParser = pywns.TableParser.TableParser(filename)
         self.filename = filename
         self.dirname, self.filenameWithoutDir = os.path.split(self.filename)
         if self.dirname == "":
             self.dirname = "./"
 
-        self.name                      = self.filenameWithoutDir.rsplit('_', 1)[0]
-        self.type                      = self.filenameWithoutDir.rsplit('_', 1)[1]
+        self.name = self.filenameWithoutDir.rsplit('_', 1)[0]
+        self.type = self.filenameWithoutDir.rsplit('_', 1)[1]
+
+        self.tableParser = pywns.TableParser.TableParser(filename)
         self.description               = self.tableParser.getDescription()
         self.minimum                   = self.tableParser.minimum
         self.maximum                   = self.tableParser.maximum
         self.trials                    = self.tableParser.trials
+
         self.mean                      = "-"
         self.variance                  = "-"
         self.relativeVariance          = "-"
