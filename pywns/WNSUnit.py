@@ -473,7 +473,10 @@ class ProbesTestSuite(SystemTestSuite):
             workingDir = workingDir,
             readProbes = True)
 
-        self.probesToBeExcluded = ['wns.Memory_TimeSeries.dat', 'wns.Memory_Moments.dat']
+        self.probesToBeExcluded = ['wns.Memory_TimeSeries.dat', 
+                                    'wns.Memory_Moments.dat',
+                                    'wns.SimTimePerRealTime_TimeSeries.dat',
+                                    'wns.SimTimePerRealTime_Moments.dat']
         self.maximumRelativeError = maximumRelativeError
         self.__requireReferenceOutput = requireReferenceOutput
 
