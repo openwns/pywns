@@ -456,7 +456,9 @@ class ProbesTestSuite(SystemTestSuite):
         disabled = False,
         disabledReason = "You MUST provide a reason for disabled tests!!!",
         requireReferenceOutput = True,
-        workingDir = None
+        workingDir = None,
+        checkCPUCycles = False,
+        CPUCycleTolerance = 0.2
         ):
         """ Setup system test with automatic probe checking
 
@@ -477,6 +479,16 @@ class ProbesTestSuite(SystemTestSuite):
                                     'wns.Memory_Moments.dat',
                                     'wns.SimTimePerRealTime_TimeSeries.dat',
                                     'wns.SimTimePerRealTime_Moments.dat']
+                                    
+        # Check no code leeds to significant runtime changes etc.
+        # but runtime on modern CPUs can vary
+        if checkCPUCycles:
+            self.simulatorPerformanceProbes = ['wns.cpuCycles_Moments.dat']
+            self.simulatorPerformanceTolerance = CPUCycleTolerance
+        else:
+            self.simulatorPerformanceProbes = []
+            self.probesToBeExcluded.append('wns.cpuCycles_Moments.dat')
+                                    
         self.maximumRelativeError = maximumRelativeError
         self.__requireReferenceOutput = requireReferenceOutput
 
@@ -589,12 +601,21 @@ class ProbesTestSuite(SystemTestSuite):
 
         self.addTest(DirectoryContentsAreEqual(
 	    self.__dict__[referenceFlavour + "Probes"].dirname,
-            self.__dict__[actualFlavour + "Probes"].dirname))
+            self.__dict__[actualFlavour + "Probes"].dirname,
+            self.probesToBeExcluded))
 
         # create tests for each probe contained in both sets
         probeNamesAvailableInBoth = referenceProbeNames.intersection(actualProbeNames)
 
         for probeName in probeNamesAvailableInBoth:
+            if probeName in self.simulatorPerformanceProbes:
+                if referenceFlavour == "reference" and actualFlavour == "opt" :
+                    maxRelativeError = self.simulatorPerformanceTolerance
+                else:
+                    continue
+            else:
+                maxRelativeError = maximumRelativeError 
+                
             # exclude removed Probes
             if probeName in self.probesToBeExcluded :
                 continue
@@ -609,7 +630,7 @@ class ProbesTestSuite(SystemTestSuite):
                     referenceFlavour,
                     probeName,
                     actualFlavour,
-                    maximumRelativeError))
+                    maxRelativeError))
 
 
 class PedanticProbesTestSuite(ProbesTestSuite):
@@ -705,11 +726,11 @@ class DirectoryContentsAreEqual(SystemTestCase):
     difference between both. No recursion is done. Only toplevel files
     are considered.
     """
-    def __init__(self, referenceDir, actualDir):
+    def __init__(self, referenceDir, actualDir, filterItems):
         super(DirectoryContentsAreEqual, self).__init__("runTest")
         self.referenceDir = referenceDir
         self.actualDir = actualDir
-        self.filterItems =  ["wns.Memory_TimeSeries.dat","wns.Memory_Moments.dat"]
+        self.filterItems =  filterItems
 
     def description(self):
         return "Check equality of " + self.referenceDir + " and " + self.actualDir
