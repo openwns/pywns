@@ -1,4 +1,4 @@
-#!/usr/bin/env python2.4
+#!/usr/bin/env python
 ###############################################################################
 # This file is part of openWNS (open Wireless Network Simulator)
 # _____________________________________________________________________________
@@ -35,7 +35,7 @@ simultions performed with WNS.
 Here is a simple example script:
 
 <schnipp>
-#! /usr/bin/env python2.4
+#! /usr/bin/env python
 
 # this is needed, so that the script can be called from everywhere
 import os
