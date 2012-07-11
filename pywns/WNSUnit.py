@@ -854,8 +854,8 @@ class Expectation(SystemTestCase):
                 if attribute in ee:
                     errorMessage += "  probe." + attribute + ": " + str(self.probe.__dict__[attribute]) + "\n"
 
-        # finally the assert
-        self.assertTrue(eval(ee, {}, {"probe":self.probe}), errorMessage)
+            # finally the assert
+            self.assertTrue(eval(ee, {}, {"probe":self.probe}), errorMessage)
 
 
 class ProbesAreAlmostEqual(SystemTestCase):
